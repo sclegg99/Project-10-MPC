@@ -9,7 +9,7 @@ const double v_ref = 200;
 
 //Set N and dt
 const double dt = 0.05;     // Set time step to a constant 50msec
-const int N = 18;           // Number of time increments into the future to predict the cars path
+const int N = 16;           // Number of time increments into the future to predict the cars path
 
 // This value assumes the model presented in the classroom is used.
 //

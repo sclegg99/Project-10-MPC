@@ -1,29 +1,61 @@
-# Kidnapped Car Project
+# Model Predictive Control (MPC) Project
 
 ## Objective
-The objective of this project determine the location of a "kidnapped car" using localization with particle filters.  The initial GPS location of the car is provided plus a map with known localizer features.  An accurate location of the car is determined from the motion of the car plus sensor measurements to the localizer features.
+The objective is to use model predictive control to successfully navigate a simulated car around a track.  The simulator provides the user with the current position, heading, velocity of the car.  In addition, the simulator provides a list of waypoints that represent the track center line from the current car position forward. The objective is to use the data provided by the simulator along with a state model of the car kinematics and predict the steering and throttle values that will cause the car to successfully navigate the track as illustrated in the video below.
 
-## Code Structure
-Particle filters are used to localize the car position.  Hence a ParticleFilter class was constructed for the purpose of localizing the car.
+[![Successful Completion Track Navigation](./figures/MPC_Picture.png)](./figures/MPC_Video.mov)
 
-ParticleFilter::init initializes N particles with the GPS x and y position and heading theta.  Random error from a normal distribution is introduced to the x and y positions with variation and heading variation which are provided.
+## Implementation
+The classic "bicycle model" was used to describe car the kinematics in state space.  Hence the state model used for the MPC was given as:
 
-ParticleFilter::Predict predicts the new position of each particle given the particle's current location and heading plus the known car velocity and yaw rate.  A bicycle model is used to predict the new particle location.  Since there is some measurement error associated with the velocity and yaw rates, the predicted position and heading has a random error (normally distributed) added to represent the velocity and yaw rate measurement errors.  The predict module takes into account the possibility that the yaw rate may be zero and includes this special case of the generalized bicycle model.
+\[
+x_{t+1} = x_t + v_t * cos(\psi_t) * dt
+\]
+\[
+y_{t+1} = y_t + y_t * sin(\psi_t) * dt
+\]
+\[
+\psi_{t+1} = \psi_t + v_t / L_f * \delta_t * dt
+\]
+\[
+v_{t+1} = v_t + a_t * dt
+\]
+where:
+\[
+x, y = position
+\]
+\[
+\psi = heading
+\]
+\[
+v = velocity
+\]
+\[
+dt = time(increment)
+\]
+\[
+\delta = steering(input)
+\]
+\[
+a = throttle(input)
+\]
+These four state equations are augmented with the cross track error (cte) and heading error (epsi) where are expressed as:
+\[
+cte_t = f(x_t) - y_t
+\]
+\[
+e\psi_t = \psi_t - atan(f'(x_t))
+\]
+and y=f(x) is the desired path of the car.
 
-ParticleFilter::Update updates the estimated position as follows:
-1. Transform observed landmarks to world coordinates withe respect to particle i.
-2. Calculate euclidian distance from sensed landmark to know map landmark.  The associate nearest landmark (min distance) with that particle sensor reading.
-3. Calculate new weight for particle given sensed position in world coordinates and the known landmark position.  The new weight is the product of the bivariate distribution (with no covariance) for all the sensed landmarks for the given particle.  It should be noted that a limit to the sensor range thus any particle to landmark distance that exceeded the sensor range was neglected.
+The Implementation of the MPC is as follows:
+1. Obtain the current car position (x,y) and waypoints from the simulator.
+2. It is assumed that there will be a 100ms latency between receiving the simulator data and sending the steering and throttle commands back to the simulator.  Therefore, the car state is advanced by 100ms according to the first four state equations.  It should be noted that the simulator velocity is given in MPH while the simulator x and y positions are in meters.  Hence the velocity must be converted to meters per second before applying it to the state equations.
+3. A coordinate transformation is then applied to the waypoints to put the waypoints into the car coordinate system.  That is, the new coordinates have x aligned with the cars longitudinal axis and (x,y) = (0,0) located at the nose of the car.
+4. The transformed waypoints are then fit to a polynomial of order N=2.  Any higher order fitting was unnecessary given the short distance the waypoints traversed.
+5. The curve fit was defined as the desired path (y=f(x)), hence the last two states (cte and epsi) could be calculated per the equations above.
+6. This established the state of the car after the latency period (in car coordinates) as 0, 0, 0, v, cte and epsi.  This state was then feed into the MPC Solve module which returned the steering and throttle actuation values.
 
-The calculation of the landmark associations was performed using a "brut force" algorithm.  That is, the distance from all the sensed landmarks to all the known landmarks was calculated.  This is an O(N*N) operation where N is the number of landmarks.  A more efficient method could have been used such as kd Trees (which is O(N)) but given the sparsity of the landmarks it was decided to opt for the brut force method.
+The MPC class set up the model constraints and how far into the future to predict the car path.  The steering was limited to +/-25degrees, hence the steering was constrained to be within [-0.436332, 0.436332] (radians).  The throttle was limited to [-1, 1]. As to the prediction time step and number of predictions, the values I finally choose were 0.05sec and 18 steps.  These seemed to insure that the predicted path was about equal to the path of the waypoints.  Decreasing the number of time increments while holding the time step constant resulted in erratic steering behavior (including leaving the track).  Increasing the time step (while proportionally reducing the number of time increments) also resulted in erratic steering behavior particularly at higher speeds.
 
-ParticleFilter::resample resampled the particles with replacement based on the particle weight calculated in the update step.
-
-## Evaluation
-The program was evaluated using a class suppled simulator.  The simulator provide the program with the car motion and sensor readings.  The simulator calculated the position and heading errors for each time step.  If the final simulator error was below a predefined level and the system time to complete the course the car traveled was also below a predefined level, then the project graded a success.
-
-One hundred (100) particles were used for this project submission.  This was a sufficient number of particles to achieve success as shown in the figure below.
-
-![Successful Completion of the Car Localization](figures/FinalResults.png
-
-Ranges from 10 to 200 particles were also tested and graded as successful.  There was a small improvement in the position and heading errors as the number of particles increased.  However, as the number of particles increased the computational time increased.
+The MPC cost function was defined by calling the class FG.  The cost was broken down into several components.

@@ -8,44 +8,8 @@ The objective is to use model predictive control to successfully navigate a simu
 ## Implementation
 The classic "bicycle model" was used to describe car the kinematics in state space.  Hence the state model used for the MPC was given as:
 
-\[
-x_{t+1} = x_t + v_t * cos(\psi_t) * dt
-\]
-\[
-y_{t+1} = y_t + y_t * sin(\psi_t) * dt
-\]
-\[
-\psi_{t+1} = \psi_t + v_t / L_f * \delta_t * dt
-\]
-\[
-v_{t+1} = v_t + a_t * dt
-\]
-where:
-\[
-x, y = position
-\]
-\[
-\psi = heading
-\]
-\[
-v = velocity
-\]
-\[
-dt = time(increment)
-\]
-\[
-\delta = steering(input)
-\]
-\[
-a = throttle(input)
-\]
-These four state equations are augmented with the cross track error (cte) and heading error (epsi) where are expressed as:
-\[
-cte_t = f(x_t) - y_t
-\]
-\[
-e\psi_t = \psi_t - atan(f'(x_t))
-\]
+![State Equations](./figures/State_Equations.jpg)
+
 and y=f(x) is the desired path of the car.
 
 The Implementation of the MPC is as follows:

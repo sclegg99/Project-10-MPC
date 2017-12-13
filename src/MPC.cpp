@@ -64,7 +64,7 @@ public:
         const double W_vel = 1.0;   // Weight applied to v cost
         double v_car = v_ref;       // Desired car speed
         if(fabs(coeffs[2]) > .01)
-            v_car = fmin(75,v_ref); // If car is approach a curve then reduce speed.
+            v_car = fmin(60,v_ref); // If car is approach a curve then reduce speed.
         for (int t = 0; t < N; t++) {
             fg[0] += W_cte * CppAD::pow(vars[cte_start + t], 2);
             fg[0] += W_eps * CppAD::pow(vars[epsi_start + t], 2);

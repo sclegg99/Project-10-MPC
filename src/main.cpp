@@ -239,7 +239,7 @@ int main() {
                     // Adjust sleep to compenstate for the execution time of the MPC
                     // so that the update nearly matches the desired latency.
                     int waitperiod = latency - int(duration);
-                    this_thread::sleep_for(chrono::milliseconds(waitperiod));
+                    this_thread::sleep_for(chrono::milliseconds(latency));
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 }
             } else {

@@ -84,7 +84,10 @@ int main() {
     // A second order polynomial is sufficient for the MPC predictons.
     int order_N = 2;
     
-    h.onMessage([&mpc, &order_N](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+    // time duration of prediction step
+    int duration = 0;
+    
+    h.onMessage([&mpc, &order_N, &duration](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                        uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
@@ -100,7 +103,6 @@ int main() {
                     // Start a timer to observe how long it takes to execute the MPC
                     //
                     clock_t start = clock();
-                    double duration;
                     // j[1] is the data JSON object
                     vector<double> ptsx = j[1]["ptsx"];
                     vector<double> ptsy = j[1]["ptsy"];
@@ -113,7 +115,8 @@ int main() {
                     
                     // Assuming a latency of 100ms update the
                     // the cars state for this latency.
-                    const int latency = 100;            // latency in ms
+                    const int actuator_latency = 100;   // actuator latency in ms
+                    double latency = actuator_latency + duration; // latency of prediction steps
                     double vmps = v*0.44704*.001;       // convert velocity from miles per hour to meters per msec
                     px += vmps*cos(psi)*latency;        // x position after latency period
                     py += vmps*sin(psi)*latency;        // y position after latency period
@@ -233,13 +236,12 @@ int main() {
                     //
                     // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
                     // SUBMITTING.
-                    duration = 1000.*( clock() - start ) / (double) CLOCKS_PER_SEC;
+                    duration = int(1000.*( clock() - start ) / (double) CLOCKS_PER_SEC);
                     cout<<"elapsed time: "<< duration << " msec" << endl;
                     
                     // Adjust sleep to compenstate for the execution time of the MPC
                     // so that the update nearly matches the desired latency.
-                    int waitperiod = latency - int(duration);
-                    this_thread::sleep_for(chrono::milliseconds(latency));
+                    this_thread::sleep_for(chrono::milliseconds(actuator_latency));
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 }
             } else {
